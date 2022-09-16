@@ -1,0 +1,12 @@
+Subnet=subnet-5136320asubnet-1f5a197asubnet-dcb24a94
+StackName=VZW-I2IV-SAM-TEST-NONPROD-HELLO
+SecurityGroup=sg-70da8e0esg-0864ea77sg-8dd4bff3
+AppID=I2IV
+Role=App
+KmsKeyArn=arn=aws=kms=us-east-1=230529650436=key/58719ae6-e242-48e4-b4ac-9f32560a4342
+ZipFileName=sam-hello-test.zip
+S3BUCKET=vz-app-vzw-i2iv-nonprod-actionengine-serverless-s3bucket
+Handler=index.lambda_handler
+ENV=NONPROD
+RoleArn=arn=aws=iam==230529650436=role/VzPol-service-NonProd-WLS-NP-I2IV-VZSRVIAAS
+LambdaFunctionName=WLS-I2IV-SAM-HELLO-TEST--LAMBDA-V1

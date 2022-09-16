@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates Autoscaling for Lambda function. Must publish and create alias of Lambda function before executing this script. 
+
+Resources:
+  ScalableTarget:      #aws application-autoscaling describe-scalable-targets --service-namespace lambda
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 100
+      MinCapacity: 5
+      RoleARN: arn:aws:iam::230529650436:role/VzPol-service-NonProd-WLS-NP-B6PV-lamb
+      ServiceNamespace: lambda
+      ScalableDimension: lambda:function:ProvisionedConcurrency
+      ResourceId: !Sub function:${LambdaFunctionName}:${LambdaAliasName}
+      SuspendedState:
+        DynamicScalingInSuspended: false
+        DynamicScalingOutSuspended: false
+        ScheduledScalingSuspended: false
+      ScheduledActions:
+      - ScalableTargetAction: 
+          MaxCapacity: 5
+        ScheduledActionName: bvpv-simota-lambda-weekend-scale-in-scheduled-action
+        Schedule: 'cron(0 21 ? * FRI *)'
+        Timezone: 'US/Eastern'
+        EndTime: '2025-12-31T12:00:00.000Z'
+
+      - ScalableTargetAction: 
+          MinCapacity: 20
+        ScheduledActionName: bvpv-simota-lambda-weekend-scale-up-scheduled-action
+        Schedule: 'cron(0 8 ? * MON *)'
+        Timezone: 'US/Eastern'
+        EndTime: '2025-12-31T12:00:00.000Z'
+  TargetTrackingScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: utilization
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 0.75 # Any value between 0.1 and 0.9 can be used here
+        PredefinedMetricSpecification:
+          PredefinedMetricType: LambdaProvisionedConcurrencyUtilization
+    DependsOn: ScalableTarget
+Parameters:
+    AppID:
+        Type: String
+    Role: 
+        Type: String
+    SecurityGroup:
+        Type: CommaDelimitedList
+    Subnet:
+        Type: CommaDelimitedList
+    UserID:
+        Type: String
+    StackName:
+        Type: String
+    KmsKeyArn:
+        Type: String
+    ENV:
+        Type: String
+    LambdaFunctionName:
+        Type: String
+    LambdaAliasName:
+        Type: String
+    RoleArn:
+        Type: String
+

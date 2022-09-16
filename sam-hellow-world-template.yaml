@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: >
+  sam-Serverless-POC with API Gateway, Lambda and DynamoDB
+
+Globals:
+  Function:
+    Timeout: 60
+    Tracing: Active
+  Api:
+    TracingEnabled: True
+
+Resources:
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: 's3://vz-app-vzw-i2iv-nonprod-actionengine-serverless-s3bucket/sam-hello-test.zip'
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      KmsKeyArn: !Ref KmsKeyArn
+      Description: Lambda Hello World Test with SAM Template
+      FunctionName: !Ref LambdaFunctionName
+      MemorySize: 128
+      Role: arn:aws:iam::230529650436:role/VzPol-service-NonProd-WLS-NP-I2IV-VZSRVIAAS
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroup
+        SubnetIds:
+          - !Ref Subnet
+ #    Policies: 
+ #       - Version: '2012-10-17'
+ #         Statement:
+ #           - Effect: Allow
+ #             Action: 
+ #              - lambda:InvokeFunction
+ #             Resource: !Ref ALBTargetGrpARN
+      Policies: 
+      - Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: 
+              - iam:Role*
+            Resource: '*'
+      Tags:
+        Userid: !Ref UserID
+        Name: !Ref LambdaFunctionName
+        Role: !Ref Role
+        Vsad: !Ref AppID
+        Environment: !Ref ENV
+#     Environment:
+#        Variables:
+#           site: <enter value here>
+#           expected: <enter value here>
+#      Events:
+#        HttpGet:
+#          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+#          Properties:
+#            Path: /hello
+#            Method: get
+
+
+Parameters:
+    AppID:
+        Type: String
+    Role: 
+        Type: String
+    SecurityGroup:
+        Type: CommaDelimitedList
+    Subnet:
+        Type: CommaDelimitedList
+    UserID:
+        Type: String
+    StackName:
+        Type: String
+    KmsKeyArn:
+        Type: String
+    ENV:
+        Type: String
+    ZipFileName:
+        Description: The Name of the ZipFile with Lambda Code
+        Type: String
+    S3BUCKET:
+        Description: S3 bucket
+        Type: String
+    Handler:
+        Type: String
+    LambdaFunctionName:
+        Type: String
+    RoleArn:
+        Type: String
+
+
+
+
+  

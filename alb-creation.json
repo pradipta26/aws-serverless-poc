@@ -1,0 +1,401 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "VZW AWS CloudFormation Template to create ALB and Target Group",
+    "Parameters": {
+        "AppID": {
+            "Description": "4 AlphaNum Char Vsad Application Code",
+            "MinLength": "4",
+            "MaxLength": "4",
+            "Type": "String",
+            "ConstraintDescription": "A Valid Vsad Code",
+            "Default": "I2IV"
+        },
+        "StackName": {
+            "Description": "Name Tag on CloudFormation Stack. Format ${AppID}-${Environment}-${Stack}-${SoftwareOrMiscInfo}-CFN",
+            "Type": "String",
+            "Default": "B6PV-NONPROD-MTAS-ServerlessALB-CFN"
+
+        },
+        "Zone": {
+            "Description": "Zone to Launch AWS Resource",
+            "Default": "green",
+            "Type": "String",
+            "AllowedValues": [
+                "green",
+                "yellow"
+            ]
+        },
+        "IamInstanceProfile": {
+            "Description": "IAM Instance Profile Name",
+            "Type": "String"
+        },
+        "Role": {
+            "Description": "Role Tag on AWS Resource",
+            "Type": "String",
+            "AllowedValues": [
+                "App",
+                "Web",
+                "DB"
+            ],
+            "Default": "App",
+            "ConstraintDescription": "A Valid Governance Defined Role"
+        },
+        "UserID": {
+            "Description": "Enter USWIN/VZID Information",
+            "MinLength": "5",
+            "MaxLength": "7",
+            "Type": "String",
+            "ConstraintDescription": "A Valid USWIN/VZID"
+        },
+        "Stack": {
+            "Description": "A Unique Stack Identifier",
+            "Default": "B6PV",
+            "Type": "String"
+        },
+        "App": {
+            "Description": "A Unique Stack Identifier",
+            "Default": "B6PV",
+            "Type": "String"
+        },
+        "Environment": {
+            "Description": "The Target AWS Environment",
+            "Default": "NONPROD",
+            "Type": "String",
+            "AllowedValues": [
+                "NONPROD",
+                "STG",
+                "PROD"
+            ]
+        },
+        "EnvIndex": {
+            "Description": "Specific Env Identifier",
+            "Type": "String"
+        },
+        "TargetProtocol": {
+            "Description": "Protocol for Target",
+            "Default": "HTTPS",
+            "Type": "String"
+        },
+        "LBProtocol": {
+            "Description": "The Protocol to Access Load Balancer",
+            "Default": "HTTPS",
+            "Type": "String",
+            "AllowedValues": [
+                "HTTPS"
+            ]
+        },
+        "LBPort": {
+            "Description": "The Port to Access Load Balancer",
+            "Default": 443,
+            "Type": "String"
+        },
+        "Sslcertid": {
+            "Description": "The Identifier of the SSL Cert imported to ACM",
+            "Type": "String"
+        },
+        "LambdaARN": {
+            "Description": "The ARN of lambda function",
+            "Type": "String"
+        },
+        "RetentionDays": {
+            "Description": "CloudWatch Log Retention",
+            "Default": 7,
+            "Type": "String"
+        }
+    },
+    "Mappings": {
+        "NONPROD": {
+            "us-east-1": {
+                "vpcid": "vpc-2c735f4a",
+                "sg": "sg-0864ea77,sg-a5d7bcdb,sg-8dd4bff3,sg-6429431a,sg-0c320d9fd03a19408",
+                "green": "subnet-058d077aeae8d6ba7,subnet-0545d15377aac3c7f,subnet-06917af464213d545",
+                "yellow": "subnet-5cf76501,subnet-9c0e71f8,subnet-895ec0a6",
+                "HA6V": "arn:aws:iam::230529650436:role/VzPol-service-NonProd-WLS-NP-HA6V-VZSRVIAAS"
+            },
+            "us-west-2": {
+                "vpcid": "vpc-f7c48c90",
+                "sg": "sg-95c52cee,sg-74a0d30f,sg-e6b9ca9d,sg-0abac971",
+                "green": "subnet-edfb9d8a,subnet-e648f0af,subnet-aa1705f2",
+                "yellow": "subnet-00504166,subnet-8debdac5,subnet-e8c427b2",
+                "HA6V": "arn:aws:iam::230529650436:role/VzPol-service-NonProd-WLS-NP-HA6V-VZSRVIAAS"
+            }
+        },
+        "PROD": {
+            "us-east-1": {
+                "vpcid": "vpc-e7d09c81",
+                "sg": "sg-28a45957,sg-4c95113d,sg-2c14e15f",
+                "green": "subnet-34e98d51,subnet-eb85b4c6,subnet-0e698846",
+                "HA6V": "arn:aws:iam::128067331242:role/VzPol-service-Prod-WLS-PR-HA6V-VZSRVIAAS"
+            },
+            "us-west-2": {
+                "vpcid": "vpc-7ba9da1c",
+                "sg": "sg-df0d27a7,sg-8ff10af5,sg-58c3ce22",
+                "green": "subnet-6f8d0608,subnet-1ec36e57,subnet-13d0d34b",
+                "HA6V": "arn:aws:iam::128067331242:role/VzPol-service-Prod-WLS-PR-HA6V-VZSRVIAAS"
+            }
+        },
+        "IamInstanceProfile" : {
+            "NONPROD": "VzPol-profile-NonProd-WLS-NP-${AppID}-VZIAAS",
+            "PROD":  "VzPol-profile-Prod-WLS-PR-${AppID}-VZIAAS"
+        },
+        "PROXY": {
+            "NONPROD": "http://proxy.ebiz.verizon.com:80",
+            "PROD":  "http://vzproxy.verizon.com:80"
+        }
+    },
+    "Conditions": {
+        "Prod": {
+            "Fn::Equals": [
+                {
+                    "Ref": "Environment"
+                },
+                "PROD"
+            ]
+        }
+    },
+    "Resources": {
+        "SimotaTargetGroup": {
+            "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+            "Properties": {
+                "Name": {
+                    "Fn::Sub": "${AppID}-${Environment}-${EnvIndex}-SimotaTG"
+                },
+                "Tags": [
+                    {
+                        "Key": "Userid",
+                        "Value": {
+                            "Ref": "UserID"
+                        }
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${AppID}_${Environment}_${Stack}_${EnvIndex}_SimotaTargetGroup"
+                        }
+                    },
+                    {
+                        "Key": "Role",
+                        "Value": {
+                            "Ref": "Role"
+                        }
+                    },
+                    {
+                        "Key": "Vsad",
+                        "Value": {
+                            "Ref": "AppID"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }
+                ],
+                "TargetType": "lambda",
+                "UnhealthyThresholdCount": 2
+            }
+        },
+        "ApplicationELBListener": {
+            "Type": "AWS::ElasticLoadBalancingV2::Listener",
+            "Properties": {
+                "Certificates": [
+                    {
+                        "CertificateArn": {
+                            "Fn::Sub": [
+                                "arn:aws:acm:${AWS::Region}:${AWS::AccountId}:certificate/${Param1}",
+                                {
+                                    "Param1": {
+                                        "Ref": "Sslcertid"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "DefaultActions": [
+                    {
+                        "Type": "fixed-response",
+                        "FixedResponseConfig": {
+                            "StatusCode": "404"
+                        }
+                    }
+                ],
+                "LoadBalancerArn": {
+                    "Ref": "ElasticLoadBalancer"
+                },
+                "Port": {
+                    "Ref": "LBPort"
+                },
+                "Protocol": {
+                    "Ref": "LBProtocol"
+                }
+            }
+        },
+        "SimotaRule": {
+            "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+            "Properties": {
+                "Actions": [
+                    {
+                        "TargetGroupArn": {
+                            "Ref": "SimotaTargetGroup"
+                        },
+                        "Type": "forward"
+                    }
+                ],
+                "Conditions": [
+                    {
+                        "Field": "path-pattern",
+                        "Values": [
+                            "/simota/*"
+                        ]
+                    }
+                ],
+                "ListenerArn": {
+                    "Ref": "ApplicationELBListener"
+                },
+                "Priority": 4
+            }
+        },
+        "ElasticLoadBalancer": {
+            "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+            "Properties": {
+                "LoadBalancerAttributes": [
+                    {
+                        "Key": "idle_timeout.timeout_seconds",
+                        "Value": 300
+                    },
+                    {
+                        "Key": "routing.http2.enabled",
+                        "Value": true
+                    },
+                    {
+                        "Key": "deletion_protection.enabled",
+                        "Value": false
+                    }
+                ],
+                "Name": {
+                    "Fn::Sub": "${AppID}-${Environment}-${Stack}-${EnvIndex}-ALB"
+                },
+                "Scheme": "internal",
+                "SecurityGroups": {
+                    "Fn::Split": [
+                        ",",
+                        {
+                            "Fn::Sub": [
+                                "${Param1}",
+                                {
+                                    "Param1": {
+                                        "Fn::FindInMap": [
+                                            {
+                                                "Ref": "Environment"
+                                            },
+                                            {
+                                                "Ref": "AWS::Region"
+                                            },
+                                            "sg"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "Subnets": {
+                    "Fn::Split": [
+                        ",",
+                        {
+                            "Fn::FindInMap": [
+                                {
+                                    "Ref": "Environment"
+                                },
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                {
+                                    "Ref": "Zone"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "Tags": [
+                    {
+                        "Key": "Userid",
+                        "Value": {
+                            "Ref": "UserID"
+                        }
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${AppID}_${Environment}_${Stack}_${EnvIndex}_LoadBalancer"
+                        }
+                    },
+                    {
+                        "Key": "Role",
+                        "Value": {
+                            "Ref": "Role"
+                        }
+                    },
+                    {
+                        "Key": "Vsad",
+                        "Value": {
+                            "Ref": "AppID"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }
+                ],
+                "Type": "application",
+                "IpAddressType": "ipv4"
+            }
+        }
+    },
+
+    "Outputs": {
+        "LoadBalancer": {
+            "Description": "ID of Elastic LoadBalancer",
+            "Value": {
+                "Ref": "ElasticLoadBalancer"
+            },
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "vz-${AppID}-${Environment}-${Stack}-${EnvIndex}-LoadBalancer"
+                }
+            }
+        },
+        "LoadBalancerDNS": {
+            "Description": "DNS Name of Elastic LoadBalancer",
+            "Value": {
+                "Fn::GetAtt": [
+                    "ElasticLoadBalancer",
+                    "DNSName"
+                ]
+            },
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "vz-${AppID}-${Environment}-${Stack}-${EnvIndex}-LoadBalancerDNS"
+                }
+            }
+        },
+        "LoadBalancerFullName": {
+            "Description": "Full Name of Elastic LoadBalancer",
+            "Value": {
+                "Fn::GetAtt": [
+                    "ElasticLoadBalancer",
+                    "LoadBalancerFullName"
+                ]
+            },
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "vz-${AppID}-${Environment}-${Stack}-${EnvIndex}-LoadBalancerFullName"
+                }
+            }
+        }
+    }
+}

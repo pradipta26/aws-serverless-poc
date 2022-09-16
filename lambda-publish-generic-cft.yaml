@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Publish Existing Lambda Function.
+
+Resources:
+  version:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !Ref LambdaFunctionName
+      Description: v1
+  alias:
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName: !Ref LambdaFunctionName
+      FunctionVersion: !GetAtt version.Version
+      Name: !Ref LambdaAliasName
+    DependsOn: version
+Parameters:
+    AppID:
+        Type: String
+    Role: 
+        Type: String
+    SecurityGroup:
+        Type: CommaDelimitedList
+    Subnet:
+        Type: CommaDelimitedList
+    UserID:
+        Type: String
+    StackName:
+        Type: String
+    KmsKeyArn:
+        Type: String
+    ENV:
+        Type: String
+    LambdaFunctionName:
+        Type: String
+    LambdaAliasName:
+        Type: String
+    RoleArn:
+        Type: String
+

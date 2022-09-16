@@ -1,0 +1,201 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "VZW AWS CloudFormation Template for Lambda using Lambda Layes",
+    "Resources": {
+        "LambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Code": {
+                    "S3Bucket": {
+                        "Ref": "S3BUCKET"
+                    },
+                    "S3Key": {
+                        "Ref": "ZipFileName"
+                    }
+                },
+                "KmsKeyArn": {
+                    "Ref": "KmsKeyArn"
+                },
+                "Description": "AE Lambda Function for Subnet mapping",
+                "FunctionName": {
+                    "Fn::Sub": "${LambdaFunctionName}"
+                },
+                "Handler": {
+                    "Ref": "Handler"
+                },
+                "MemorySize": 512,
+                "Role": {
+                    "Ref": "RoleArn"
+                },
+                "Runtime": {
+                    "Ref": "Runtime"
+                },
+                "Timeout": 300,
+                "VpcConfig": {
+                    "SecurityGroupIds": {
+                        "Ref": "SecurityGroup"
+                    },
+                    "SubnetIds": {
+                        "Ref": "Subnet"
+                    }
+                },
+                "Tags": [
+                    {
+                        "Key": "Userid",
+                        "Value": {
+                            "Ref": "UserID"
+                        }
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "${LambdaFunctionName}"
+                        }
+                    },
+                    {
+                        "Key": "Role",
+                        "Value": {
+                            "Ref": "Role"
+                        }
+                    },
+                    {
+                        "Key": "Vsad",
+                        "Value": {
+                            "Ref": "AppID"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "ENV"
+                        }
+                    }
+                ],
+                "Environment": {
+                    "Variables": {
+                        "USER": { "Fn::FindInMap" : ["oracleUser", { "Ref": "AWS::Region" }, { "Ref": "ENV" }]},
+                        "PASSWORD" : { "Fn::FindInMap" : ["oraclePassword", { "Ref": "AWS::Region" }, { "Ref": "ENV" }]},
+                        "HOST": { "Fn::FindInMap" : ["oracleHost", { "Ref": "AWS::Region" }, { "Ref": "ENV" }]},
+                        "PORT": { "Fn::FindInMap" : ["oraclePort", { "Ref": "AWS::Region" }, { "Ref": "ENV" }]},
+                        "SID": { "Fn::FindInMap" : ["oracleSid", { "Ref": "AWS::Region" }, { "Ref": "ENV" }]},
+                        "REGION": {"Ref": "AWS::Region"},
+                        "connectionstring": { "Fn::FindInMap" : ["oracleConnectionString", { "Ref": "AWS::Region" }, { "Ref": "ENV" }]}
+                    }
+
+                },
+                "Layers": {
+                    "Fn::Split" : [ "," , {"Ref": "LambdaLayersArns"} ] 
+                }
+            }
+                
+        },
+        "ALBInvokeLambdaPermission": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+               "FunctionName": {"Ref": "LambdaFunction"},
+               "Action": "lambda:InvokeFunction",
+               "Principal": "elasticloadbalancing.amazonaws.com",
+               "SourceArn": {"Ref": "ALBTargetGrp"}
+             },
+             "DependsOn": ["LambdaFunction"]
+         }
+    },
+    "Parameters": {
+        "AppID": {
+            "Type": "String"
+        },
+        "Role": {
+            "Type": "String"
+        },
+        "SecurityGroup": {
+            "Type": "CommaDelimitedList"
+        },
+        "Subnet": {
+            "Type": "CommaDelimitedList"
+        },
+        "UserID": {
+            "Type": "String",
+            "Default": "basupr7"
+        },
+        "StackName": {
+            "Type": "String"
+        },
+        "KmsKeyArn": {
+            "Type": "String"
+        },
+        "ENV": {
+            "Type": "String"
+        },
+        "Handler": {
+            "Type": "String"
+        },
+        "Stack": {
+            "Description": "A Unique Stack Identifier",
+            "Default": "b6pv",
+            "Type": "String"
+        },
+        "ZipFileName": {
+            "Description": "The Name of the ZipFile with Lambda Code",
+            "Type": "String"
+        },
+        "S3BUCKET": {
+            "Description": "S3 bucket",
+            "Type": "String"
+        },
+        "RoleArn": {
+            "Description": "Lambda Role ARN",
+            "Type": "String"
+        },
+        "RetentionInDays": {
+            "Description": "CloudWatch Log Retention",
+            "Default": 7,
+            "Type": "String"
+        },
+        "Runtime": {
+            "Description": "Lambda Runtime",
+            "Default": "python3.9",
+            "Type": "String"
+        },
+        "LambdaFunctionName": {
+            "Description": "lambda function name",
+            "Type": "String"
+        },
+        "LambdaLayersArns": {
+            "Description": "lambda function layers",
+            "Type": "String"
+        },
+        "ALBTargetGrp": {
+            "Description": "lambda function name",
+            "Type": "String"
+        }
+        
+    },
+    "Mappings" : {
+        "oracleUser" : {
+            "us-east-1": {  "PROD": "mtaser4", "NONPROD": "mtaser4" },
+            "us-west-2": {  "PROD": "mtaser4", "NONPROD": "mtaser4" }
+        },
+        "oraclePort" : {
+            "us-east-1": {  "PROD": "2084", "NONPROD": "2084" },
+            "us-west-2": {  "PROD": "2084", "NONPROD": "2084" }
+        },
+        "oracleSid" : {
+            "us-east-1": {  "PROD": "", "NONPROD": "mtaseuat" },
+            "us-west-2": {  "PROD": "", "NONPROD": "mtaseuat" }
+        },
+        "oracleHost" : {
+            "us-east-1": {  "PROD": "", "NONPROD": "AQICAHjeIWRDYU4bcpp1Nl4rXucKhbj++pKF9Ru3ePzlZ/Fy0AHw0T89UMEjJaNYYjhijqEgAAAAkTCBjgYJKoZIhvcNAQcGoIGAMH4CAQAweQYJKoZIhvcNAQcBMB4GCWCGSAFlAwQBLjARBAzjUr3u8lixJ393aKECARCATCH5+kfe4JfzTT2bvD8/fFb3qgP2toPFO8bv/D2c19ad+o99JNFGuAv0A822wkb2Dc65nTMlBWflW31QwLXX1YoqpshRaCvnHsr50/g=" },
+            "us-west-2": {  "PROD": "", "NONPROD": "AQICAHhY+erO6HeAHOTVCUstrZPW99r+dI+zYMuym+5QNvH7EgE7vovzM21nsIWKSLQOAiTLAAAAkTCBjgYJKoZIhvcNAQcGoIGAMH4CAQAweQYJKoZIhvcNAQcBMB4GCWCGSAFlAwQBLjARBAyf30BMcE1qj8NZvPICARCATILFsuhAkvBaSY/BLCNRervVBrKonc2D94CwPfqt4VTXZ6NtfA4qey4Vn+kmpQhuHsHT9OTMEd42Aebui56FwBWgNfr+c4nPCG0bR8o=" }
+        },
+        "oraclePassword" : {
+            "us-east-1": {  "PROD": "", "NONPROD": "AQICAHjeIWRDYU4bcpp1Nl4rXucKhbj++pKF9Ru3ePzlZ/Fy0AHIVbuYQ+fMi3k+YCYa8PdeAAAAZTBjBgkqhkiG9w0BBwagVjBUAgEAME8GCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMESEcfTI1tMjuh8aMAgEQgCJ50yyJoMY1LdHnV2hRKiOOilycUQpPh1ozT/EIs8kf/fDk" },
+            "us-west-2": {  "PROD": "", "NONPROD": "AQICAHhY+erO6HeAHOTVCUstrZPW99r+dI+zYMuym+5QNvH7EgHmKoYLaTJ+oiS1eP5OytGMAAAAZTBjBgkqhkiG9w0BBwagVjBUAgEAME8GCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMZLKUp01/K+ZBUQlqAgEQgCKybp6tuEOi9r1r/9PAOaVMxPuo/cAIzYNd2ZDaQi2ERHcr" }
+        },
+        "oracleConnectionString" : {
+            "us-east-1": {  "PROD": "", "NONPROD": "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCPS)(HOST=mtaseuat.cuhe4turceu2.us-west-2.rds.amazonaws.com)(PORT=2084))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=mtaseuat))(SECURITY=(SSL_SERVER_CERT_DN=\"C=US,ST=Washington,L=Seattle,O=Amazon.com,OU=RDS,CN=mtaseuat.cuhe4turceu2.us-west-2.rds.amazonaws.com\")))" },
+            "us-west-2": {  "PROD": "", "NONPROD": "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCPS)(HOST=mtaseuat.cuhe4turceu2.us-west-2.rds.amazonaws.com)(PORT=2084))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=mtaseuat))(SECURITY=(SSL_SERVER_CERT_DN=\"C=US,ST=Washington,L=Seattle,O=Amazon.com,OU=RDS,CN=mtaseuat.cuhe4turceu2.us-west-2.rds.amazonaws.com\")))" }
+        } 
+        
+    }
+    
+}
